@@ -1,5 +1,4 @@
 import requests
-import secret
 import asyncio
 import discord
 import os
