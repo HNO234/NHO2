@@ -1,20 +1,18 @@
 import requests
 import asyncio
-import discord
 import os
+import discord
 from bs4 import BeautifulSoup
-from command import Command
+from discord.ext import commands
 from tools import is_positive_integer
 
-class CodeforcesRecentSubmissionsCrawler(Command):
+class CodeforcesRecentSubmissionsCrawler(commands.Cog):
     is_toggled = False
-    def __init__(self,channel,arguments):
-        self.channel = channel
-        self.arguments = arguments
+    def __init__(self,bot):
+        self.bot=bot
 
     # Get status page from contest ID.
-    def get_status_URL(self):
-        contest_id = self.arguments[1]
+    def get_status_URL(self, contest_id):
         if not is_positive_integer(contest_id):
             return None
         contest_id = int(contest_id)
@@ -29,15 +27,15 @@ class CodeforcesRecentSubmissionsCrawler(Command):
             return None
 
     # Remove redundant suffix (Because of virtual contest or Out of Competition contestants) by crawling
-    def parse_handle(self,handle):
+    def parse_handle(self, handle):
         if handle.endswith('#'): # Virtual contest ended mark
             handle = handle[:-1]
         if len(handle) >= 3 and handle[-3]==':': # During virtual contest mark
             handle = handle[:-5]
         return handle
 
-    async def get_recent_submissions(self):
-        status_url = self.get_status_URL()
+    async def get_recent_accepted_submissions(self, contest_id):
+        status_url = self.get_status_URL(contest_id)
         if status_url == None:
             return None
 
@@ -67,49 +65,50 @@ class CodeforcesRecentSubmissionsCrawler(Command):
             problem = attributes[3].get_text().strip()
             verdict = attributes[5].get_text().strip()
 
-            # submission_list.append((submission_id,handle,problem,verdict))
-            submission_list.append((handle,problem,verdict))
+            if verdict == 'Accepted'
+                submission_list.append((handle,problem))
         return submission_list
 
-    async def track_contest(self,track_time=180,interval=60):
-        tracked_submissions = await self.get_recent_submissions()
+    async def track_contest(self, ctx, contest_id, track_time=180, interval=60):
+        tracked_submissions = await self.get_recent_accepted_submissions(contest_id)
         if tracked_submissions == None:
-            await self.channel.send("track: Contest ID not valid or Connection Error")
+            await ctx.send("track: Contest ID not valid or Connection Error")
             return
         tracked_submissions = set(tracked_submissions)
 
-        await self.channel.send("Ok, start tracking Codeforces contest " + self.arguments[1] + "...")
+        await ctx.send("Ok, start tracking Codeforces contest " + contest_id + "...")
 
         track_times = track_time * 60 // interval + 1
         for _ in range(track_times):
             await asyncio.sleep(interval)
             if not self.__class__.is_toggled:
                 return
-            recent_submissions = await self.get_recent_submissions()
+            recent_submissions = await self.get_recent_accepted_submissions(contest_id)
             if tracked_submissions == None:
-                await self.channel.send("track: Contest ID not valid or Connection Error")
+                await ctx.send("track: Contest ID not valid or Connection Error")
                 return
 
             for submission in recent_submissions:
-                if submission in tracked_submissions or submission[2] != 'Accepted':
+                if submission in tracked_submissions:
                     continue
                 tracked_submissions.add(submission)
-                embed = discord.Embed(title="Congrats :tada:", description="Congrats to contestant `" + submission[0] + "` on solving problem `" + submission[1] + "` !!", color=0x00aa00)
-                await self.channel.send(embed=embed)
+                embed = discord.Embed(title="Congrats :tada:", description="Contestant `" + submission[0] + "` solved problem `" + submission[1] + "` !!", color=0x00aa00)
+                await ctx.send(embed=embed)
 
-        await self.channel.send("track: Track finished after " + track_time + "minutes")
+        await ctx.send("track: Track finished after " + track_time + "minutes")
 
+    @commands.command()
+    async def track(self, ctx, contest_id):
+        if self.__class__.is_toggled:
+            await ctx.send("track: Already tracking")
+            return
+        self.__class__.is_toggled = True
+        await self.track_contest(ctx, contest_id)
 
+    @commands.command()
+    async def untrack(self,ctx):
+        self.__class__.is_toggled = False
+        await ctx.send("untrack: Tracking disabled")
 
-    async def run(self):
-        if self.arguments[0] == 'track':
-            if self.__class__.is_toggled:
-                await self.channel.send("track: Already tracking")
-                return
-            self.__class__.is_toggled = True
-            await self.track_contest()
-        elif self.arguments[0] == 'untrack':
-            self.__class__.is_toggled = False
-            await self.channel.send("untrack: Tracking disabled")
-        else:
-            await self.channel.send("nho2: Command not found: " + self.arguments[0])
+def setup(bot):
+    bot.add_cog(CodeforcesRecentSubmissionsCrawler(bot))
