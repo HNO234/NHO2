@@ -65,7 +65,7 @@ class CodeforcesRecentSubmissionsCrawler(commands.Cog):
             problem = attributes[3].get_text().strip()
             verdict = attributes[5].get_text().strip()
 
-            if verdict == 'Accepted'
+            if verdict == 'Accepted':
                 submission_list.append((handle,problem))
         return submission_list
 
@@ -97,6 +97,7 @@ class CodeforcesRecentSubmissionsCrawler(commands.Cog):
 
         await ctx.send("track: Track finished after " + track_time + "minutes")
 
+    @commands.is_owner()
     @commands.command()
     async def track(self, ctx, contest_id):
         if self.__class__.is_toggled:
@@ -105,6 +106,7 @@ class CodeforcesRecentSubmissionsCrawler(commands.Cog):
         self.__class__.is_toggled = True
         await self.track_contest(ctx, contest_id)
 
+    @commands.is_owner()
     @commands.command()
     async def untrack(self,ctx):
         self.__class__.is_toggled = False
