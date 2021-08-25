@@ -7,6 +7,7 @@ cogs = ['crawler']
 
 @bot.event
 async def on_message(message):
+	print(message.content)
 	if message.content == 'nho2':
 		await message.channel.send("Hi! This is Discord bot developed by HNO2.\nYou can find my soure code at https://github.com/HNO234/NHO2.")
 	await bot.process_commands(message)
